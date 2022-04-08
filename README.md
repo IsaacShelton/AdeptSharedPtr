@@ -21,7 +21,6 @@ adept2-6 -e
 Copy `Shared.adept` into your project and then import it, that's it.
 
 ```
-
 pragma compiler_version '2.6'
 pragma ignore_unused
 
