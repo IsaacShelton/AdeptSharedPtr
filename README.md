@@ -1,11 +1,10 @@
 # AdeptSharedPtr
 An implementation of Shared Pointers in Adept
 
+*Notice: This example is designed for Adept 2.6. Due to potential future improvements in management semantics, this library will most likely evolve over time and may not work in its current form in future Adept versions. However, it does work with Adept 2.7 indev as of April 8th 2022.*
 
 
 ### How to Compile
-
-Notice: This example is only designed for Adept 2.6, as it explicitly relies on the `2.6` version of management semantics and `Optional.adept`. It may need to updated for future releases.
 
 For best results, use `adept2-6`
 
