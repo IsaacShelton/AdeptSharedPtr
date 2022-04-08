@@ -1,0 +1,184 @@
+
+// Require the compiler to at least partially support 2.6
+pragma compiler_supports '2.6'
+
+// Show warning if using in version after '2.6'
+#default Shared_future_compatibility_warning true
+
+#if __compiler_major__ != 2 || __compiler_minor__ != 6
+    #if Shared_future_compatibility_warning
+        #print_warning "Shared.adept WARNING: This library was only designed for Adept 2.6 and may break in future releases"
+        #print_warning "    (`#set Shared_future_compatibility_warning false` to disable this warning)"
+    #end
+#end
+
+// Imports (we rely on specific version here, since management semantics may change in the future)
+import '2.6/Optional.adept'
+
+// ------------- SharedPtrCounter -------------
+struct SharedPtrCounter (refCount usize, weakCount usize)
+
+// ------------- SharedPtr -------------
+struct <$T> SharedPtr (
+    pData *$T,
+    counter *SharedPtrCounter,
+    transferring bool
+) {
+    func __defer__ {
+        // Nothing to destroy for empty shared pointers (zero initialized only)
+        if this.counter == null, return
+
+        // Otherwise we will reduce the reference count
+        this.counter.refCount -= 1
+
+        if this.counter.refCount == 0 {
+            // Destroy and delete the pointee if no strong references remain
+            this.pData.?__defer__()
+            delete this.pData
+
+            if this.counter.weakCount == 0 {
+                // Delete the counter if no references to the counter remain
+                delete this.counter
+            }
+        }
+    }
+
+    func __assign__(other POD <$T> SharedPtr){
+        // Increment reference count of pointer we're about to take on
+        other.counter.refCount += 1
+
+        // Destroy ourself
+        this.__defer__()
+
+        // Take on the pointer
+        this.pData = other.pData
+        this.counter = other.counter
+        this.transferring = false
+
+        // Destroy the supplied shared pointer
+        // if it's marked as "transferring"
+        // (e.g. its a temporary value only and not stored yet)
+        if other.transferring {
+            other.__defer__()
+        }
+    }
+
+    func clone() <$T> SharedPtr {
+        // Cloning empty SharedPtr returns empty SharedPtr
+        if this.counter == null, return *this
+
+        // Otherwise an actual clone is created
+        cloned POD <$T> SharedPtr = POD *this
+        cloned.counter.refCount += 1
+        cloned.transferring = true
+        return cloned
+    }
+
+    func weak() <$T> WeakPtr {
+        // Create weak pointer to data
+        weak POD <$T> WeakPtr = undef
+        weak.pData = this.pData
+
+        // Creating weak pointer from empty SharedPtr returns empty WeakPtr
+        if this.counter != null {
+            weak.counter = this.counter
+            weak.counter.weakCount += 1
+        } else {
+            weak.counter = null
+        }
+
+        return weak
+    }
+
+    func get() *$T {
+        // Since shared pointer will always contain valid reference,
+        // no special checks are needed here
+        return this.pData
+    }
+}
+
+func SharedPtr(data *$T) <$T> SharedPtr {
+    // Construct a SharedPtr
+    shared POD <$T> SharedPtr = undef
+    shared.pData = data
+    shared.counter = new SharedPtrCounter
+    shared.transferring = true
+    shared.counter.refCount = 1
+    return shared
+}
+
+func __pass__(shared POD <$T> SharedPtr) <$T> SharedPtr {
+    // When shared pointers are passed as arguments that
+    // aren't marked as 'POD', they should be automatically cloned
+    return shared.clone()
+}
+
+// ------------- WeakPtr -------------
+struct <$T> WeakPtr (
+    pData *$T,
+    counter *SharedPtrCounter
+) {
+    func __defer__ {
+        // Nothing to destroy for empty weak pointers (zero initialized only)
+        if this.counter == null, return
+
+        // Otherwise we will reduce the weak count
+        this.counter.weakCount -= 1
+
+        // And destroy the counter if nothing else references it
+        if this.counter.refCount == 0 && this.counter.weakCount == 0 {
+            delete this.counter
+        }
+    }
+
+    func weak() <$T> WeakPtr {
+        // Creating a weak pointer from an empty weak pointer
+        // returns another empty weak pointer
+        if this.counter == null, return *this
+
+        // Otherwise we will actually create another weak pointer
+        weak POD <$T> WeakPtr = undef
+        weak.pData = this.pData
+        weak.counter = this.counter
+        weak.counter.weakCount += 1
+        return weak
+    }
+
+    func shared() <<$T> SharedPtr> Optional {
+        // If empty weak pointer or no strong references,
+        // we cannot create a shared pointer from ourself
+        if this.counter == null || this.counter.refCount == 0 {
+            return none() ~> <<$T> SharedPtr> Optional
+        }
+
+        // Otherwise we will
+        shared POD <$T> SharedPtr = undef
+        shared.pData = this.pData
+        shared.counter = this.counter
+        shared.transferring = true
+        shared.counter.refCount += 1
+        return some(shared)
+    }
+
+    func get() *$T {
+        // If the data is still alive, we will return a pointer to it
+        if this.counter != null && this.counter.refCount > 0 {
+            return this.pData
+        }
+
+        // Otherwise return null
+        return null
+    }
+}
+
+// ------------- toString -------------
+
+// Provide toString for '<$T> SharedPtr'
+func toString(pointer <$T> SharedPtr) String {
+    return sprintf("SharedPtr(%p)", pointer.get())
+}
+
+// Provide toString for '<$T> WeakPtr'
+func toString(pointer <$T> WeakPtr) String {
+    return sprintf("WeakPtr(%p)", pointer.get())
+}

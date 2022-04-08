@@ -1,0 +1,146 @@
+
+pragma compiler_version '2.6'
+pragma ignore_unused
+pragma null_checks
+
+import basics
+import "Shared.adept"
+import "Test.adept"
+
+func main {
+    test1()
+    test2()
+    test3()
+    test4()
+    test5()
+    test6()
+    print("[OK] All tests passed!")
+}
+
+func test1 {
+    test Test = Test("test1")
+
+    if true {
+        name <ubyte> SharedPtr = SharedPtr(strdup('Hello World'))
+        test.assertNotEquals(null as *ubyte, name.pData)
+        test.assertNotEquals(null as *SharedPtrCounter, name.counter)
+        test.assertEquals(1, name.counter.refCount)
+        test.assertEquals(0, name.counter.weakCount)
+    }
+}
+
+func test2 {
+    test Test = Test("test2")
+
+    integer <int> SharedPtr = SharedPtr(new int)
+
+    if true {
+        same_integer <int> SharedPtr = integer
+        test.assertEquals(2, integer.counter.refCount)
+    }
+
+    test.assertEquals(1, integer.counter.refCount)
+}
+
+func test3 {
+    test Test = Test("test3")
+
+    weak_pointer <int> WeakPtr
+    test.assertEquals(null as *SharedPtrCounter, weak_pointer.counter)
+    test.assertEquals(null as *int, weak_pointer.get())
+
+    if true {
+        integer <int> SharedPtr = SharedPtr(new int)
+        weak_pointer = integer.weak()
+
+        test.assertNotEquals(null as *int, weak_pointer.get())
+        test.assertEquals(integer.counter, weak_pointer.counter)
+        test.assertEquals(1, weak_pointer.counter.refCount)
+        test.assertEquals(1, weak_pointer.counter.weakCount)
+    }
+
+    test.assertEquals(null as *int, weak_pointer.get())
+    test.assertNotEquals(null as *SharedPtrCounter, weak_pointer.counter)
+    test.assertEquals(0, weak_pointer.counter.refCount)
+    test.assertEquals(1, weak_pointer.counter.weakCount)
+}
+
+func test4 {
+    test Test = Test("test4")
+
+    long_weak_pointer <String> WeakPtr
+
+    if true {
+        shared_pointer <String> SharedPtr = SharedPtr(new String)
+        *shared_pointer.get() = "This " + "is " + "a " + "string"
+
+        if true {
+            weak_pointer <String> WeakPtr = shared_pointer.weak()
+            test.assertEquals(1, shared_pointer.counter.refCount)
+            test.assertEquals(1, shared_pointer.counter.weakCount)
+        }
+
+        test.assertEquals(1, shared_pointer.counter.refCount)
+        test.assertEquals(0, shared_pointer.counter.weakCount)
+
+        long_weak_pointer = shared_pointer.weak()
+    }
+
+    test.assertNotEquals(null as *SharedPtrCounter, long_weak_pointer.counter)
+    test.assertEquals(0, long_weak_pointer.counter.refCount)
+    test.assertEquals(1, long_weak_pointer.counter.weakCount)
+    test.assertEquals(null as *String, long_weak_pointer.get())
+    test.assertNone(long_weak_pointer.shared())
+}
+
+func test5 {
+    test Test = Test("test5")
+
+    if true {
+        shared_pointer <<String> List> SharedPtr = SharedPtr(new <String> List)
+        shared_pointer.get().add("Apple")
+        shared_pointer.get().add("Banana")
+        shared_pointer.get().add("Orange")
+
+        weak_pointer <<String> List> WeakPtr = shared_pointer.weak()
+        maybe_from_weak <<<String> List> SharedPtr> Optional = weak_pointer.shared()
+
+        test.assertEquals(true, maybe_from_weak.has)
+        from_weak <<String> List> SharedPtr = maybe_from_weak.get()
+
+        test.assertEquals(3, from_weak.counter.refCount)
+        test.assertEquals(1, from_weak.counter.weakCount)
+
+        test.assertEquals(from_weak.get().get(0), "Apple")
+        test.assertEquals(from_weak.get().get(1), "Banana")
+        test.assertEquals(from_weak.get().get(2), "Orange")
+    }
+}
+
+func test6 {
+    test Test = Test("test6")
+
+    weak_pointers [2] <[10][10] int> WeakPtr
+
+    if true {
+        one <[10][10] int> SharedPtr = test6\getGridOne()
+        two <[10][10] int> SharedPtr = test6\getGridTwo()
+        weak_pointers[0] = one.weak()
+        weak_pointers[1] = one.weak()
+
+        test.assertNotEquals(null as *[10][10] int, weak_pointers[0].get())
+        test.assertNotEquals(null as *[10][10] int, weak_pointers[1].get())
+    }
+
+    test.assertEquals(null as *[10][10] int, weak_pointers[0].get())
+    test.assertEquals(null as *[10][10] int, weak_pointers[1].get())
+}
+
+func test6\getGridOne() <[10][10] int> SharedPtr {
+    return SharedPtr(new [10][10] int)
+}
+
+func test6\getGridTwo() <[10][10] int> SharedPtr {
+    grid <[10][10] int> SharedPtr = SharedPtr(new [10][10] int)
+    return grid.clone()
+}

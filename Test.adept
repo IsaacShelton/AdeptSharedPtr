@@ -1,0 +1,27 @@
+
+record Test (name String) {
+    func __defer__ {
+        printf("[OK] Test '%S' passed!\n", this.name)
+    }
+
+    func assertEquals(expected, actual $T) {
+        if expected != actual {
+            printf("[FAIL] Inside test '%S', expected %S but got %S (type is %s)\n", this.name, toString(expected), toString(actual), typenameof $T)
+            abort()
+        }
+    }
+
+    func assertNotEquals(unexpected, actual $T) {
+        if unexpected == actual {
+            printf("[FAIL] Inside test '%S', expected %S to not equal %S (type is %s)\n", this.name, toString(actual), toString(unexpected), typenameof $T)
+            abort()
+        }
+    }
+
+    func assertNone(actual <$T> Optional) {
+        if actual.has {
+            printf("[FAIL] Inside test '%S', expected none but got some(%S) (type is %s)\n", this.name, toString(actual.value), typenameof $T)
+            abort()
+        }
+    }
+}

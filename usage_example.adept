@@ -1,26 +1,3 @@
-# AdeptSharedPtr
-An implementation of Shared Pointers in Adept
-
-
-
-### How to Compile
-
-Notice: This example is only designed for Adept 2.6, as it explicitly relies on the `2.6` version of management semantics and `Optional.adept`. It may need to updated for future releases.
-
-For best results, use `adept2-6`
-
-To compile and run tests
-```
-adept2-6 -e
-```
-
-
-
-### How to use in your own project
-
-Copy `Shared.adept` into your project and then import it, that's it.
-
-```
 pragma ignore_unused
 
 import basics
@@ -65,5 +42,3 @@ func getSharedTwo() <int> SharedPtr {
     pointer <int> SharedPtr = SharedPtr(new int)
     return pointer.clone()
 }
-```
-
